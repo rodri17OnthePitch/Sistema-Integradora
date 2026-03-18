@@ -1,14 +1,44 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="card" style="text-align: center; max-width: 600px; margin: 10rem auto;">
-    <h1 class="gradient-text">Sistema de Estacionamiento</h1>
-    <p style="margin-bottom: 2rem; color: var(--text-muted);">Bienvenido al sistema inteligente de gestión de accesos.</p>
+<div class="card" style="text-align: center; max-width: 450px; margin: 5rem auto; padding: 2rem;">
+    <h1 class="gradient-text">Acceso al Sistema</h1>
+    <p style="margin-bottom: 2rem; color: var(--text-muted);">Introduce tus credenciales para continuar.</p>
     
-    <div style="display: grid; gap: 1rem;">
-        <a href="/user/1" class="btn btn-primary">Entrar como Usuario (Prueba)</a>
-        <a href="/security" class="btn btn-primary" style="background: var(--success);">Entrar como Seguridad</a>
-        <a href="/admin" class="btn btn-primary" style="background: var(--warning);">Entrar como Administrador</a>
-    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div style="color: #ff4d4d; margin-bottom: 1rem; font-size: 0.9rem;">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" style="display: grid; gap: 1.2rem; text-align: left;">
+        <div>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Correo Electrónico</label>
+            <input type="email" name="email" required placeholder="ejemplo@u.edu" 
+                   style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid #ddd;">
+        </div>
+
+        <div>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Contraseña</label>
+            <input type="password" name="password" required placeholder="••••••••"
+                   style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid #ddd;">
+        </div>
+
+        <div>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Tipo de Cuenta</label>
+            <select name="role" required style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid #ddd; background: white;">
+                <option value="alumno">Alumno</option>
+                <option value="maestro">Maestro</option>
+                <option value="seguridad">Seguridad</option>
+                <option value="admin">Administrador</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+            Iniciar Sesión
+        </button>
+    </form>
 </div>
 {% endblock %}

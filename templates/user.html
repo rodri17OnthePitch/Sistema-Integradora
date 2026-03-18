@@ -1,40 +1,45 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="card">
-    <h1 class="gradient-text">Hola, {{ user.name }}</h1>
-    <p style="color: var(--text-muted);">{{ user.email }}</p>
+<div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h1 class="gradient-text">Hola, {{ user.name }}</h1>
+        <p style="color: var(--text-muted);">{{ user.email }} | <span style="text-transform: capitalize; color: var(--primary);">{{ user.role }}</span></p>
+    </div>
+    <a href="/logout" class="btn" style="background: #ff4d4d; color: white; text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px;">Cerrar Sesión</a>
 </div>
 
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-    <!-- Info Vehiculo -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
     <div class="card">
         <h3>Tu Vehículo</h3>
         {% if vehicle %}
-            <p><strong>Placa:</strong> {{ vehicle.plate }}</p>
+            <p><strong>Placa:</strong> <span style="color: var(--primary);">{{ vehicle.plate }}</span></p>
             <p><strong>Modelo:</strong> {{ vehicle.model }}</p>
-            <p><strong>Color:</strong> {{ vehicle.color }}</p>
+            <p><strong>Tipo:</strong> {{ vehicle.type }}</p>
+            <p><strong>Año:</strong> {{ vehicle.year }}</p>
         {% else %}
-            <p>No hay vehículo registrado.</p>
+            <p style="color: var(--warning);">No hay vehículo registrado para este usuario.</p>
         {% endif %}
     </div>
 
-    <!-- Generar QR -->
     <div class="card" style="text-align: center;">
         <h3>Acceso Hoy</h3>
         <p style="font-size: 2rem; font-weight: bold;">{{ codes_today }} / 2</p>
-        <p style="margin-bottom: 1rem; font-size: 0.8rem; color: var(--text-muted);">Usos permitidos por día</p>
+        <p style="margin-bottom: 1rem; font-size: 0.8rem; color: var(--text-muted);">Códigos generados hoy</p>
         
-        <button id="generateBtn" class="btn btn-primary" onclick="generateQR()">Generar QR de Acceso</button>
+        {% if vehicle %}
+            <button id="generateBtn" class="btn btn-primary" onclick="generateQR()">Generar QR de Acceso</button>
+        {% endif %}
         
         <div id="qrContainer" style="margin-top: 1.5rem; display: none;">
-            <img id="qrImg" src="" style="width: 200px; border-radius: 1rem; padding: 10px; background: white;">
-            <p style="margin-top: 0.5rem; color: var(--warning);">Válido por 24 horas</p>
+            <img id="qrImg" src="" style="width: 200px; border-radius: 1rem; padding: 10px; background: white; border: 2px solid var(--primary);">
+            <p style="margin-top: 0.5rem; color: var(--success); font-weight: bold;">¡QR Generado con éxito!</p>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Válido por 24 horas</p>
         </div>
     </div>
 </div>
 
-<div class="card">
+<div class="card" style="margin-top: 2rem;">
     <h3>Tus Registros Recientes</h3>
     <div class="table-container">
         <table>
@@ -42,7 +47,7 @@
                 <tr>
                     <th>Fecha y Hora</th>
                     <th>Tipo</th>
-                    <th>Token de Acceso</th>
+                    <th>Token (Placa-ID)</th>
                 </tr>
             </thead>
             <tbody>
@@ -50,7 +55,7 @@
                 <tr>
                     <td>{{ log.timestamp }}</td>
                     <td><span class="status-{{ log.type | lower }}">{{ log.type }}</span></td>
-                    <td style="font-family: monospace; font-size: 0.8rem;">{{ log.token }}</td>
+                    <td style="font-family: monospace; font-size: 0.8rem; color: var(--primary);">{{ log.token }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -73,7 +78,7 @@ async function generateQR() {
             alert(data.error);
         }
     } catch (e) {
-        alert("Error al generar el código");
+        alert("Error al conectar con el servidor");
     }
 }
 </script>

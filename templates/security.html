@@ -1,84 +1,112 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="card">
-    <h1 class="gradient-text">Escáner de Seguridad</h1>
-    <p style="color: var(--text-muted); margin-bottom: 2rem;">Acerque el código QR a la cámara o use el lector USB.</p>
+<div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h1 class="gradient-text" style="margin: 0;">Escáner Automático</h1>
+        <p style="color: var(--text-muted); margin: 0;">Operador: <strong>{{ session.user_name }}</strong></p>
+    </div>
+    <a href="/logout" class="btn" style="background: #ff4d4d; color: white; text-decoration: none; padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: bold;">
+        Cerrar Sesión
+    </a>
+</div>
 
-    <div id="reader"></div>
+<div class="card" style="text-align: center; margin-top: 1.5rem; position: relative;">
+    <div id="reader" style="width: 100%; max-width: 550px; margin: 0 auto; border-radius: 15px; overflow: hidden; background: #1a1a1a; border: 3px solid #333;"></div>
+    
+    <div id="statusToast" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; background: rgba(255, 255, 255, 0.95); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 2px solid var(--success); z-index: 10;">
+        <h2 id="toastTitle" style="color: #2f855a; margin-top: 0;"></h2>
+        <div style="text-align: left; font-size: 0.9rem; color: #333;">
+            <p><strong>Usuario:</strong> <span id="toastUser"></span></p>
+            <p><strong>Placa:</strong> <span id="toastPlate" style="font-weight: bold; color: var(--primary);"></span></p>
+        </div>
+    </div>
 
-    <div style="margin-top: 2rem;">
-        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">Entrada manual / Lector USB:</p>
-        <input type="text" id="usbInput" placeholder="Enfoque aquí para usar lector USB" autocomplete="off">
+    <div id="errorMsg" style="display: none; margin-top: 20px; color: #c53030; font-weight: bold;">
+        ⚠️ Error de cámara. Verifica los permisos en el navegador y recarga.
     </div>
 </div>
 
-<div id="resultCard" class="card qr-result-card">
-    <h2 id="resultStatus" style="font-size: 1.5rem;"></h2>
-    <div style="text-align: left; background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 1rem; display: inline-block; min-width: 300px;">
-        <p><strong>Usuario:</strong> <span id="resUser"></span></p>
-        <p><strong>Vehículo:</strong> <span id="resModel"></span></p>
-        <p><strong>Placa:</strong> <span id="resPlate" style="color: var(--primary); font-weight: bold;"></span></p>
-    </div>
-    <div style="margin-top: 1.5rem;">
-        <button class="btn btn-primary" onclick="resetScanner()">Aceptar / Siguiente</button>
-    </div>
-</div>
-
-<!-- Lector QR JS -->
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
 const html5QrCode = new Html5Qrcode("reader");
-const resultCard = document.getElementById('resultCard');
-const usbInput = document.getElementById('usbInput');
+let isProcessing = false; // Bandera para evitar peticiones duplicadas en milisegundos
 
-function onScanSuccess(decodedText, decodedResult) {
-    handleScan(decodedText);
-}
-
-const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
-
-// USB Input Handling
-usbInput.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        handleScan(this.value);
-        this.value = '';
+window.addEventListener('load', async () => {
+    try {
+        const devices = await Html5Qrcode.getCameras();
+        if (devices && devices.length > 0) {
+            // Iniciamos automáticamente con la primera cámara
+            const config = { fps: 20, qrbox: { width: 250, height: 250 } };
+            html5QrCode.start(devices[0].id, config, onScanSuccess);
+        }
+    } catch (err) {
+        document.getElementById('errorMsg').style.display = 'block';
     }
 });
 
-async function handleScan(token) {
+async function onScanSuccess(decodedText) {
+    if (isProcessing) return; // Si ya estamos enviando uno, ignorar el resto
+    isProcessing = true;
+    
     try {
         const response = await fetch('/scan', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: token })
+            body: JSON.stringify({ token: decodedText })
         });
         const data = await response.json();
         
         if (response.ok) {
-            showResult(data);
+            // Reproducir sonido
+            new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3').play();
+            
+            // Mostrar el mensaje de éxito
+            showToast(data);
         } else {
-            alert("ERROR: " + data.error);
+            console.error(data.error);
+            // Si hay error (ej. QR ya usado), permitimos reintentar rápido
+            isProcessing = false; 
         }
     } catch (e) {
-        alert("Error de conexión con el servidor");
+        isProcessing = false;
     }
 }
 
-function showResult(data) {
-    document.getElementById('resultStatus').innerText = data.status;
-    document.getElementById('resUser').innerText = data.user;
-    document.getElementById('resModel').innerText = data.model;
-    document.getElementById('resPlate').innerText = data.plate;
+function showToast(data) {
+    const toast = document.getElementById('statusToast');
+    const title = document.getElementById('toastTitle');
     
-    resultCard.style.display = 'block';
-    window.scrollTo(0, document.body.scrollHeight);
-}
+    // Cambiar color de la alerta según el resultado
+    if (data.is_error) {
+        toast.style.border = "3px solid #ff4d4d"; // Rojo para errores/expirados
+        title.style.color = "#ff4d4d";
+        // Sonido de error
+        new Audio('https://assets.mixkit.co/active_storage/sfx/2573/2573-preview.mp3').play();
+    } else {
+        toast.style.border = "3px solid #2f855a"; // Verde para registros OK
+        title.style.color = "#2f855a";
+        // Sonido de éxito
+        new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3').play();
+    }
 
-function resetScanner() {
-    resultCard.style.display = 'none';
-    usbInput.focus();
+    title.innerText = data.status;
+    document.getElementById('toastUser').innerText = data.user;
+    document.getElementById('toastPlate').innerText = data.plate;
+    
+    toast.style.display = 'block';
+
+    // Desaparece solo y permite el siguiente escaneo después de 3 segundos
+    setTimeout(() => {
+        toast.style.display = 'none';
+        isProcessing = false; 
+    }, 3000); 
 }
 </script>
+
+<style>
+/* Estilo para que el lector se vea activo */
+#reader video { border-radius: 12px; }
+.card { transition: all 0.3s ease; }
+</style>
 {% endblock %}

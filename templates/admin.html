@@ -1,12 +1,16 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="card">
-    <h1 class="gradient-text">Panel de Administración</h1>
-    <p style="color: var(--text-muted);">Reporte general de accesos (Entradas y Salidas).</p>
+<div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h1 class="gradient-text">Panel de Administración</h1>
+        <p style="color: var(--text-muted);">Bienvenido, <strong>{{ session.user_name }}</strong></p>
+    </div>
+    <a href="/logout" class="btn" style="background: #ff4d4d; color: white; text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px;">Cerrar Sesión</a>
 </div>
 
-<div class="card">
+<div class="card" style="margin-top: 1rem;">
+    <h3 style="margin-bottom: 1rem;">Reporte Histórico de Accesos</h3>
     <div class="table-container">
         <table>
             <thead>
@@ -23,8 +27,16 @@
                 <tr>
                     <td style="font-weight: 600;">{{ report.name }}</td>
                     <td>{{ report.model }}</td>
-                    <td><span style="background: rgba(99, 102, 241, 0.2); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--primary);">{{ report.plate }}</span></td>
-                    <td><span class="status-{{ report.type | lower }}">{{ report.type }}</span></td>
+                    <td>
+                        <span style="background: rgba(99, 102, 241, 0.1); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--primary); color: var(--primary); font-weight: bold;">
+                            {{ report.plate }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="status-{{ report.type | lower }}" style="padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;">
+                            {{ report.type }}
+                        </span>
+                    </td>
                     <td style="color: var(--text-muted); font-size: 0.85rem;">{{ report.timestamp }}</td>
                 </tr>
                 {% endfor %}
@@ -33,7 +45,9 @@
     </div>
 </div>
 
-<div style="text-align: center;">
-    <a href="/" class="btn btn-primary" style="background: var(--card-bg);">Volver al Inicio</a>
+{% if not reports %}
+<div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+    <p>No hay registros de acceso en la base de datos.</p>
 </div>
+{% endif %}
 {% endblock %}
