@@ -12,6 +12,8 @@ Sistema web para la gestión de accesos vehiculares mediante códigos QR dinámi
 - Flask
 - QRCode
 - Pillow
+- Requests
+- Cryptography
 
 ## Instalación y Uso
 1. Instalar dependencias:
