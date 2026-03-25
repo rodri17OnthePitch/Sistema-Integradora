@@ -1,3 +1,6 @@
 flask
 qrcode
 pillow
+cryptography
+requests
+pytest

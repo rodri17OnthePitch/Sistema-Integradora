@@ -2,11 +2,18 @@ import os
 import sqlite3
 import qrcode
 from datetime import datetime, timedelta
+import json
 from flask import Flask, render_template, request, jsonify, send_file, url_for, session, redirect, flash
 from io import BytesIO
 app = Flask(__name__)
-app.secret_key = 'mi_llave_secreta_muy_segura' # Necesario para usar session
+app.secret_key = 'mi_llave_secreta_muy_segura' # Necesario para usar session (development only)
 DB_PATH = 'parking_system.db'
+# Load encryption helpers and key.
+# CRYPTO_KEY is a symmetric AES-256 key used to decrypt device payloads.
+# For production prefer setting PSK_B64 env var to a securely provisioned base64 key,
+# or use an external secret manager. In development, `secret.key` will be generated.
+from crypto_utils import load_key, decrypt
+CRYPTO_KEY = load_key()
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
@@ -128,10 +135,31 @@ def security_dashboard():
     return render_template('security.html')
 @app.route('/scan', methods=['POST'])
 def scan_qr():
-    if 'role' not in session or session['role'] != 'seguridad':
-        return jsonify({'error': 'No autorizado'}), 403
+    # Flow summary:
+    # 1) If the caller sends an encrypted `payload` field, decrypt it with AES-GCM
+    #    and extract the `token` from the resulting JSON. This supports devices
+    #    that communicate directly to the server using a pre-shared key.
+    # 2) Otherwise, fall back to the existing behavior that expects an authenticated
+    #    security staff session and a plaintext `token` in the JSON body.
+    payload_b64 = None
+    token = None
+    if request.is_json:
+        payload_b64 = request.json.get('payload')
 
-    token = request.json.get('token')
+    if payload_b64:
+        # Encrypted device payload path
+        try:
+            decrypted = decrypt(CRYPTO_KEY, payload_b64)
+            data = json.loads(decrypted.decode())
+            token = data.get('token')
+        except Exception:
+            # Decryption or JSON parsing failed — treat as a bad request.
+            return jsonify({'error': 'decryption_failed'}), 400
+    else:
+        # Session-based (security personnel) plaintext token path
+        if 'role' not in session or session['role'] != 'seguridad':
+            return jsonify({'error': 'No autorizado'}), 403
+        token = request.json.get('token')
     conn = get_db_connection()
     
     query = '''
@@ -201,4 +229,9 @@ def admin_dashboard():
     return render_template('admin.html', reports=reports)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    cert = os.environ.get('SSL_CERT_FILE')
+    keyfile = os.environ.get('SSL_KEY_FILE')
+    if cert and keyfile:
+        app.run(debug=True, host='0.0.0.0', port=5000, ssl_context=(cert, keyfile))
+    else:
+        app.run(debug=True, host='0.0.0.0', port=5000)
